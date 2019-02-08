@@ -40,11 +40,11 @@ class Format {
      * Function to 'disarm' any BBCode formatting in a string.
      */
     static function NoBBC($string) {
-        return '[nobbc]' . str_replace(
-            array('[', ']'),
-            array('(', ')'),
+        return str_replace(
+            array('[', ']', '#', '<', '>'),
+            array('(', ')',  '', '(', ')'),
             $string
-        ) . ' [/nobbc]';
+        );
     }
     
     /**
@@ -86,11 +86,9 @@ class Format {
     static function StatNumber($number) {
         switch($number) {
         case 1337:
-            return '[abbr=1337][b]leet[/b][/abbr]';
+            return 'leet';
         case 1787569:
-            return '[abbr=1.787.569 ofwel 1337²][b]leet^2!!![/b][/abbr]';
-        case 9999999:
-            return '[abbr=Sjongejonge, er kan tegenwoordig geen key meer vanaf hè... De jeugd van tegenwoordig...]9.999.999[/abbr]';
+            return 'leet^2!!!';
         default:
             return Format::Number($number);
         }

@@ -43,3 +43,10 @@ function readExternalFile($url) {
     
     return $response;
 }
+
+function times($str, $count) {
+	$ret = $str;
+	for ($i = 1; $i < $count; $i++) {
+		$ret .= $str;
+	}
+}

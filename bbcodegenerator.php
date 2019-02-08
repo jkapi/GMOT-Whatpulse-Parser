@@ -2,12 +2,13 @@
 /*	GMOT BB-code Whatpulse stats parser
  *	Parses stats from the database into BBCode
  *
- *	Source, contributors, changelog and issues:
  *  - https://github.com/goldenice/GMOT-Whatpulse-Parser
+ *	Source, contributors, changelog and issues:
  */
 
-# display as plain text
-header('Content-Type: text/plain');
+# display as html
+header('Content-Type: text/html');
+ob_start();
 
 # Defines
 define('ROOT',              dirname(__FILE__));
@@ -341,18 +342,17 @@ if (count($users) > 0) {
     $milestoneIndex = count($milestones) - 1;
     $milestonePrint = false;
 }
+$milestoneslength = strlen((string)count($milestones)) + 2;
 
 // message heading
-echo '[b][size=14pt]Statistieken gegenereerd op ' . Format::DateTime($statsDateTill) . '[/size] ';
-echo '(' . date("H:i:s", $statsDateTill) . ')' . ENDL;
+echo '[Statistieken gegenereerd op](' . Format::DateTime($statsDateTill) . ')';
+echo ' (' . date("H:i:s", $statsDateTill) . ')' . ENDL;
 
 echo 'Geteld vanaf ' . Format::DateTime($statsDateFrom) . ' ' . date('H:i:s', $statsDateFrom) . ENDL . ENDL;
 
 // table heading
-echo '[table][tr][td][b]#[/td][td][b]Gebruikersnaam[/td]';
-echo '[td][b]Keys[/td][td][/td][td][b]Kliks[/td][td][/td]';
-echo '[td][b]' . $thirdStatHeading . '[/td][td][/td][/tr]' . ENDL;
-
+echo str_pad('#', $milestoneslength) . '| Gebruikersnaam      | Keys                 | Kliks                | ' . $thirdStatHeading . ENDL;
+echo str_pad('', $milestoneslength, '=') . '========================================================================================' . ENDL;
 // table rows
 foreach ($users as $user) {
     // do not display users that have left.
@@ -368,8 +368,8 @@ foreach ($users as $user) {
     
     // print a milestone if we have to
     if ($milestonePrint) {
-        echo '[tr][td][/td][td][b]' . $milestones[$milestoneIndex]['name'] . '[/td]';
-        echo '[td][right][b]' . Format::Number($milestones[$milestoneIndex]['keyvalue']) . '[/td][td][/td][td][/td][td][/td][td][/td][td][/td][/tr]' . ENDL;
+        echo str_pad('< ', $milestoneslength) . '|' . str_pad(' < ' . $milestones[$milestoneIndex]['name'] . ' >', 21) . '|';
+        echo str_pad(' < ' . Format::Number($milestones[$milestoneIndex]['keyvalue']) . ' >', 22) . '|                      |' . ENDL;
         $milestonePrint = false;
     }
     
@@ -378,51 +378,53 @@ foreach ($users as $user) {
     
     // 1st column: ranking
     
-    
-    echo '[tr][td]';
-    
     $rank = $user->getRawData('rank');
     $rankDiff = $user->getRankDiff();
     
     // red or green text when rank has changed
     if ($rankDiff < 0) {
-        echo '[green][abbr=+' . Format::Number(-$rankDiff) . ']'; 
+        echo str_pad('[' . $rank . ']', $milestoneslength);
     } elseif ($rankDiff > 0) {
-        echo '[red][abbr=-' . Format::Number($rankDiff) . ']';
-    }
-    echo $rank . '[/td]';
+        echo str_pad('<' . $rank . '>', $milestoneslength);
+    } else {
+		echo str_pad($rank, $milestoneslength);
+	}
     
     
     // 2nd column: username (and rank up icon)
     
     
-    echo '[td]';
+    echo '|';
     
+	$print = ' ';
+	
     // show rank up symbol if keys - keysDiff is smaller than the next milestone.
     if ($milestoneIndex < count($milestones) - 1) {
         if ($user->getRawData('keys') - $user->getRawData('keysDiff') < $milestones[$milestoneIndex]['keyvalue']) {
-            echo '[img]' . $rank_up_png . '[/img] ';
+            $print .= '↑';
         }
     }
     
     // show the username in green if the user has returned (re-joined after leaving)
     if ($user->getRawData('status') == 'returned') {
-        echo '[abbr=The prodigal son has returned!][green]';
-    }
-    
-    echo $user->getUsername() . '[/td]';
+        $print .= '['.$user->getUsername().']';
+    } else {
+		$print .= $user->getUsername();
+	}
+	
+	echo str_pad($print, 21) . '| ';
     
     
     // 3rd column: keys
+    $print = '';
     
-    
-    echo '[td][right]' . Format::StatNumber($user->getRawData('keys')) . '[/td][td]';
+    $print .= Format::StatNumber($user->getRawData('keys')) . ' ';
     
     // keysDiff value
     $keysDiff = $user->getRawData('keysDiff');
     
     if ($keysDiff > 0) {
-        
+        /*
         $saverdays = $user->getRawData('saverdays');
         $prefix = '';
         
@@ -438,59 +440,61 @@ foreach ($users as $user) {
             $prefix .= ' [color=purple]';
         } else {
             $prefix .= ' [green]';
-        }
-        echo $prefix . '+' . Format::StatNumber($keysDiff);
+        }*/
+        $print .= '<+' . Format::StatNumber($keysDiff) . '>';
     }
     
-    echo '[/td]';
+	echo str_pad($print, 21) . '| ';
     
     
     // 4th column: clicks
+    $print = '';
     
-    
-    echo '[td][right]' . Format::StatNumber($user->getRawData('clicks')) . '[/td][td]';
+    $print .= Format::StatNumber($user->getRawData('clicks')) . ' ';
     
     // clicksDiff value
     $clicksDiff = $user->getRawData('clicksDiff');
     
     if ($clicksDiff > 0) {
-        
+        /*
         if (!$user->isSaver() && $clicksDiff == $highest['clicksDiff']) {
             $prefix = ' [blue]';
         } else if ($user->isSaver() && $clicksDiff == $highest['clicksSavedDiff']) {
             $prefix = ' [color=purple]';
         } else {
             $prefix = ' [green]';
-        }
-        echo $prefix . '+' . Format::StatNumber($clicksDiff);
+        }*/
+        $print .= '<+' . Format::StatNumber($clicksDiff) . '>';
     }
     
-    echo '[/td]';
+	echo str_pad($print, 21) . '| ';
     
     
     // 5th column: third stat
     
-    echo '[td]';
+    echo '';
     
     if ($thirdStat == 'uptime') {
-        echo Format::Uptime($user->getRawData('uptime')) . '[/td][td]';
+        echo Format::Uptime($user->getRawData('uptime')) . ' ';
         
         $uptimeDiff = $user->getRawData('uptimeDiff');
         if ($uptimeDiff > 0) {
+			/*
             if (!$user->isSaver() && $uptimeDiff == $highest['uptimeDiff']) {
                 $prefix = ' [blue]';
             } else if ($user->isSaver() && $uptimeDiff == $highest['uptimeSavedDiff']) {
                 $prefix = ' [color=purple]';
             } else {
                 $prefix = ' [green]';
-            }
-            echo $prefix . '+' . Format::Uptime($uptimeDiff);
+            }*/
+            echo '<+' . Format::Uptime($uptimeDiff) . '>';
         }
     } elseif ($thirdStat == 'bandwidth') {
         echo Format::Bandwidth($user->getRawData('bandwidth')) . '[/td][td]';
         
         $bandwidthDiff = $user->getRawData('bandwidthDiff');
         if ($bandwidthDiff > 0) {
+			/*
             if (!$user->isSaver() && $bandwidthDiff == $highest['bandwidthDiff']) {
                 $prefix = ' [blue]';
             } else if ($user->isSaver() && $bandwidthDiff == $highest['bandwidthSavedDiff']) {
@@ -498,17 +502,18 @@ foreach ($users as $user) {
             } else {
                 $prefix = ' [green]';
             }
-            echo $prefix . '+' . Format::Bandwidth($bandwidthDiff);
+			*/
+            echo '<+' . Format::Bandwidth($bandwidthDiff) . '>';
         }
     }
     
     
-    echo '[/td][/tr]' . ENDL;
+    echo ENDL;
     
     
 }
 
-echo '[/table]' . ENDL . ENDL;
+echo ENDL . ENDL;
 
 // end of table
 
@@ -523,45 +528,58 @@ if (count($events) > 0) {
 }
 
 // display totals
+echo '#Totalen' . ENDL;
 
-echo '[b]Totalen[/b]' . ENDL;
-echo '[table]';
+echo '<Keys>      | ';
+echo Format::StatNumber($totals['keys']) . ' ';
+echo (($totals['keysDiff'] > 0)?'[+':'[-') . Format::StatNumber($totals['keysDiff']) . ']' . ENDL;
 
-echo '[tr][td]Keys [/td]';
-echo '[td]' . Format::StatNumber($totals['keys']) . '[tt]    [/tt][/td]';
-echo '[td]' . (($totals['keysDiff'] > 0)?'[green]+':'[red]-') . Format::StatNumber($totals['keysDiff']) . '[/td][/tr]' . ENDL;
+echo '<Kliks>     | ';
+echo Format::StatNumber($totals['clicks']) . ' ';
+echo (($totals['clicksDiff'] > 0)?'[+':'[-') . Format::StatNumber($totals['clicksDiff']) . ']' . ENDL;
 
-echo '[tr][td]Kliks [/td]';
-echo '[td]' . Format::StatNumber($totals['clicks']) . '[/td]';
-echo '[td]' . (($totals['clicksDiff'] > 0)?'[green]+':'[red]-') . Format::StatNumber($totals['clicksDiff']) . '[/td][/tr]' . ENDL;
+echo '<Uptime>    | ';
+echo Format::Uptime($totals['uptime']) . '|';
+echo (($totals['uptimeDiff'] > 0)?'[+':'[-') . Format::Uptime($totals['uptimeDiff']) . ']' . ENDL;
 
-echo '[tr][td]Uptime [/td]';
-echo '[td]' . Format::Uptime($totals['uptime']) . '[/td]';
-echo '[td]' . (($totals['uptimeDiff'] > 0)?'[green]+':'[red]-') . Format::Uptime($totals['uptimeDiff']) . '[/td][/tr]' . ENDL;
+echo '<Download>  | ';
+echo Format::Bandwidth($totals['download']) . ' ';
+echo (($totals['downloadDiff'] > 0)?'[+':'[-') . Format::Bandwidth($totals['downloadDiff']) . ']' . ENDL;
 
-echo '[tr][td]Download [/td]';
-echo '[td]' . Format::Bandwidth($totals['download']) . '[/td]';
-echo '[td]' . (($totals['downloadDiff'] > 0)?'[green]+':'[red]-') . Format::Bandwidth($totals['downloadDiff']) . '[/td][/tr]' . ENDL;
-
-echo '[tr][td]Upload [/td]';
-echo '[td]' . Format::Bandwidth($totals['upload']) . '[/td]';
-echo '[td]' . (($totals['uploadDiff'] > 0)?'[green]+':'[red]-') . Format::Bandwidth($totals['uploadDiff']) . '[/td][/tr]' . ENDL;
+echo '<Upload>    | ';
+echo Format::Bandwidth($totals['upload']) . ' ';
+echo (($totals['uploadDiff'] > 0)?'[+':'[-') . Format::Bandwidth($totals['uploadDiff']) . ']' . ENDL;
 
 if ($totals['pulsers'] > 0) {
     
-    echo '[tr][td]Pulsers[/td][td]' . $totals['pulsers'] . '[/td]';
-    echo '[td][abbr=Percentage van alle leden]' . round(($totals['pulsers'] / $totals['active']) * 100, 2).'%[/td][/tr]' . ENDL;
+    echo '<Pulsers>   | ' . $totals['pulsers'];
+    echo ' (' . round(($totals['pulsers'] / $totals['active']) * 100, 2).'%)' . ENDL;
     
-    echo '[tr][td]Spaarders[tt]    [/tt][/td][td]' . $totals['savers'] . '[/td]';
-    echo '[td][abbr=Percentage van de pulsers]' . round(($totals['savers'] / $totals['pulsers']) * 100, 2).'%[/td][/tr]' . ENDL;
+    echo '<Spaarders> | ' . $totals['savers'];
+    echo ' (' . round(($totals['savers'] / $totals['pulsers']) * 100, 2).'%)' . ENDL;
     
 }
 
-echo '[/table]' . ENDL . ENDL;
+echo '```' . ENDL;
 
-echo Mirror::getMirrorsBBcode($mirrors);
+//echo Mirror::getMirrorsBBcode($mirrors);
+echo 'Deze Statistieken: https://joeykapi.nl/wpdiscord/bbcodegenerator.php' . ENDL;
 
-echo '[/sup] ([url=https://github.com/goldenice/GMOT-Whatpulse-Parser]Broncode[/url])' . ENDL . ENDL;
+echo 'Broncode: https://github.com/jkapi/GMOT-Whatpulse-Parser/tree/Discord';
+
+$output = ob_get_clean();
+$lines = explode(ENDL, $output);
+echo '<textarea rows="10" cols="100">```md' . ENDL;
+$printlength = 0;
+for ($i = 0; $i < count($lines); $i++) {
+	$printlength += strlen($lines[$i]) + 2;
+	if ($printlength > 1980) {
+		echo ENDL . '```</textarea><br><textarea rows="10" cols="100">```md' . ENDL;
+		$printlength = strlen($lines[$i]);
+	}
+	echo $lines[$i] . ENDL;
+}
+echo ENDL . '</textarea>';
 
 if (DEVMODE || isset($_GET['devmode']) || isset($_GET['gentime'])) {
     echo 'Generated in ' . ((microtime(true) - $starttime) * 1000) . ' milliseconds.';
