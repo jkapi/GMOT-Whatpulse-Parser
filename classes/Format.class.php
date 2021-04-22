@@ -41,8 +41,8 @@ class Format {
      */
     static function NoBBC($string) {
         return str_replace(
-            array('[', ']', '#', '<', '>'),
-            array('(', ')',  '', '(', ')'),
+            array('[', ']', '#', '<', '>', '_', '*'),
+            array('(', ')',  '', '(', ')', ' ', ''),
             $string
         );
     }
