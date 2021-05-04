@@ -63,9 +63,7 @@ if ($db->connect_errno) {
 # Script Settings
 $teamtag 		= '[GMOT]'; // important for removing the team tag from the username.
 $sourceUrl      = 'https://raw.githubusercontent.com/goldenice/GMOT-Whatpulse-Parser/master/bbcodegenerator.php';
-$scriptUrls		= array(
-    'https://joeykapi.nl/wpdiscord/bbcodegenerator.php'
-);
+$scriptUrls		= ['https://joeykapi.nl/wpdiscord/bbcodegenerator.php'];
 // $basedir 		= 'http://rpi.ricklubbers.nl/sandbox/gmotwpstats/new';
 $rank_up_png    = 'http://is.gd/6aftPs';
 
@@ -106,6 +104,19 @@ if (isset($_GET['goback'])) {
     }
 }
 
+// allow output of previous days to be re-generated:
+$fetchdays = 0;
+if (isset($_GET['fetchdays'])) {
+    if (intval($_GET['fetchdays']) > 0) {
+        $fetchdays += intval($_GET['fetchdays']);
+    }
+}
+
+$fullstat = false;
+if (isset($_GET['full'])) {
+    $fullstat = true;
+}
+
 // stat timestamps (from - till)
 $sql = '
 SELECT
@@ -114,11 +125,13 @@ FROM
     `3_global`
 ORDER BY
     `timestamp` DESC
-LIMIT 3
+LIMIT 300
 OFFSET ' . intval($goback) . ';';
 
 $result = $db->query($sql);
 $statsDateTill = $result->fetch_row()[0];
+for($i = 0; $i < $fetchdays; $i++)
+	$result->fetch_row();
 $statsDateFrom = $result->fetch_row()[0];
 $statsDateYesterday = $result->fetch_row()[0];
 
@@ -154,7 +167,7 @@ LEFT JOIN 3_updates AS today
     AND today.seqnum = (SELECT MAX(seqnum) FROM 3_updates) - ' . intval($goback) . '
 LEFT JOIN 3_updates AS yesterday
     ON yesterday.userid = users.id
-    AND yesterday.seqnum = (SELECT MAX(seqnum) FROM 3_updates) - ' . (intval($goback) + 1) . '
+    AND yesterday.seqnum = (SELECT MAX(seqnum) FROM 3_updates) - ' . (intval($goback) + intval($fetchdays) + 1) . '
 WHERE
     users.status != "ex-member"
 GROUP BY
@@ -348,8 +361,14 @@ echo ' (' . date("H:i:s", $statsDateTill) . ')' . ENDL;
 echo 'Geteld vanaf ' . Format::DateTime($statsDateFrom) . ' ' . date('H:i:s', $statsDateFrom) . ENDL . ENDL;
 
 // table heading
-echo str_pad('#', $milestoneslength) . '| Gebruikersnaam      | Keys                 | Kliks                | ' . $thirdStatHeading . ENDL;
+if ($fullstat == true) {
+	echo str_pad('#', $milestoneslength) . '| Gebruikersnaam      | Keys                    | Kliks                   | Uptime             | Bandwidth' . ENDL;
+echo str_pad('', $milestoneslength, '=') . '=================================================================================================================' . ENDL;
+}
+else {
+	echo str_pad('#', $milestoneslength) . '| Gebruikersnaam      | Keys                    | Kliks                   | ' . $thirdStatHeading . ENDL;
 echo str_pad('', $milestoneslength, '=') . '========================================================================================' . ENDL;
+}
 // table rows
 foreach ($users as $user) {
     // do not display users that have left.
@@ -366,7 +385,12 @@ foreach ($users as $user) {
     // print a milestone if we have to
     if ($milestonePrint) {
         echo str_pad('< ', $milestoneslength) . '|' . str_pad(' < ' . $milestones[$milestoneIndex]['name'] . ' >', 21) . '|';
-        echo str_pad(' < ' . Format::Number($milestones[$milestoneIndex]['keyvalue']) . ' >', 22) . '|                      |' . ENDL;
+        echo str_pad(' < ' . Format::Number($milestones[$milestoneIndex]['keyvalue']) . ' >', 25) . '|                         |';
+		if ($fullstat) {
+			echo "                    |" . ENDL;
+		} else {
+			echo ENDL;
+		}
         $milestonePrint = false;
     }
     
@@ -380,9 +404,9 @@ foreach ($users as $user) {
     
     // red or green text when rank has changed
     if ($rankDiff < 0) {
-        echo str_pad('[' . $rank . ']', $milestoneslength);
-    } elseif ($rankDiff > 0) {
         echo str_pad('<' . $rank . '>', $milestoneslength);
+    } elseif ($rankDiff > 0) {
+        echo str_pad('[' . $rank . ']', $milestoneslength);
     } else {
 		echo str_pad($rank, $milestoneslength);
 	}
@@ -441,7 +465,7 @@ foreach ($users as $user) {
         $print .= '<+' . Format::StatNumber($keysDiff) . '>';
     }
     
-	echo str_pad($print, 21) . '| ';
+	echo str_pad($print, 24) . '| ';
     
     
     // 4th column: clicks
@@ -464,45 +488,80 @@ foreach ($users as $user) {
         $print .= '<+' . Format::StatNumber($clicksDiff) . '>';
     }
     
-	echo str_pad($print, 21) . '| ';
+	echo str_pad($print, 24) . '| ';
     
     
     // 5th column: third stat
     
-    echo '';
     
-    if ($thirdStat == 'uptime') {
-        echo Format::Uptime($user->getRawData('uptime')) . ' ';
-        
-        $uptimeDiff = $user->getRawData('uptimeDiff');
-        if ($uptimeDiff > 0) {
+	if ($fullstat) {
+		$print = Format::Uptime($user->getRawData('uptime')) . ' ';
+		
+		$uptimeDiff = $user->getRawData('uptimeDiff');
+		if ($uptimeDiff > 0) {
 			/*
-            if (!$user->isSaver() && $uptimeDiff == $highest['uptimeDiff']) {
-                $prefix = ' [blue]';
-            } else if ($user->isSaver() && $uptimeDiff == $highest['uptimeSavedDiff']) {
-                $prefix = ' [color=purple]';
-            } else {
-                $prefix = ' [green]';
-            }*/
-            echo '<+' . Format::Uptime($uptimeDiff) . '>';
-        }
-    } elseif ($thirdStat == 'bandwidth') {
-        echo Format::Bandwidth($user->getRawData('bandwidth')) . '[/td][td]';
-        
-        $bandwidthDiff = $user->getRawData('bandwidthDiff');
-        if ($bandwidthDiff > 0) {
+			if (!$user->isSaver() && $uptimeDiff == $highest['uptimeDiff']) {
+				$prefix = ' [blue]';
+			} else if ($user->isSaver() && $uptimeDiff == $highest['uptimeSavedDiff']) {
+				$prefix = ' [color=purple]';
+			} else {
+				$prefix = ' [green]';
+			}*/
+			$print .= '<+' . Format::Uptime($uptimeDiff) . '>';
+		}
+		
+		echo str_pad($print, 19) . '| ';
+		
+		echo Format::Bandwidth($user->getRawData('bandwidth')) . ' ';
+		
+		$bandwidthDiff = $user->getRawData('bandwidthDiff');
+		if ($bandwidthDiff > 0) {
 			/*
-            if (!$user->isSaver() && $bandwidthDiff == $highest['bandwidthDiff']) {
-                $prefix = ' [blue]';
-            } else if ($user->isSaver() && $bandwidthDiff == $highest['bandwidthSavedDiff']) {
-                $prefix = ' [color=purple]';
-            } else {
-                $prefix = ' [green]';
-            }
+			if (!$user->isSaver() && $bandwidthDiff == $highest['bandwidthDiff']) {
+				$prefix = ' [blue]';
+			} else if ($user->isSaver() && $bandwidthDiff == $highest['bandwidthSavedDiff']) {
+				$prefix = ' [color=purple]';
+			} else {
+				$prefix = ' [green]';
+			}
 			*/
-            echo '<+' . Format::Bandwidth($bandwidthDiff) . '>';
-        }
-    }
+			echo '<+' . Format::Bandwidth($bandwidthDiff) . '>';
+		}
+	}
+	else {
+		if ($thirdStat == 'uptime') {
+			echo Format::Uptime($user->getRawData('uptime')) . ' ';
+			
+			$uptimeDiff = $user->getRawData('uptimeDiff');
+			if ($uptimeDiff > 0) {
+				/*
+				if (!$user->isSaver() && $uptimeDiff == $highest['uptimeDiff']) {
+					$prefix = ' [blue]';
+				} else if ($user->isSaver() && $uptimeDiff == $highest['uptimeSavedDiff']) {
+					$prefix = ' [color=purple]';
+				} else {
+					$prefix = ' [green]';
+				}*/
+				echo '<+' . Format::Uptime($uptimeDiff) . '>';
+			}
+		} elseif ($thirdStat == 'bandwidth') {
+			echo Format::Bandwidth($user->getRawData('bandwidth')) . ' ';
+			
+			$bandwidthDiff = $user->getRawData('bandwidthDiff');
+			if ($bandwidthDiff > 0) {
+				/*
+				if (!$user->isSaver() && $bandwidthDiff == $highest['bandwidthDiff']) {
+					$prefix = ' [blue]';
+				} else if ($user->isSaver() && $bandwidthDiff == $highest['bandwidthSavedDiff']) {
+					$prefix = ' [color=purple]';
+				} else {
+					$prefix = ' [green]';
+				}
+				*/
+				echo '<+' . Format::Bandwidth($bandwidthDiff) . '>';
+			}
+		}
+	}
     
     
     echo ENDL;
@@ -529,23 +588,23 @@ echo '#Totalen' . ENDL;
 
 echo '<Keys>      | ';
 echo Format::StatNumber($totals['keys']) . ' ';
-echo (($totals['keysDiff'] > 0)?'[+':'[-') . Format::StatNumber($totals['keysDiff']) . ']' . ENDL;
+echo (($totals['keysDiff'] > 0)?'+':'-') . Format::StatNumber($totals['keysDiff']) . ENDL;
 
 echo '<Kliks>     | ';
 echo Format::StatNumber($totals['clicks']) . ' ';
-echo (($totals['clicksDiff'] > 0)?'[+':'[-') . Format::StatNumber($totals['clicksDiff']) . ']' . ENDL;
+echo (($totals['clicksDiff'] > 0)?'+':'-') . Format::StatNumber($totals['clicksDiff']) . ENDL;
 
 echo '<Uptime>    | ';
-echo Format::Uptime($totals['uptime']) . '|';
-echo (($totals['uptimeDiff'] > 0)?'[+':'[-') . Format::Uptime($totals['uptimeDiff']) . ']' . ENDL;
+echo Format::Uptime($totals['uptime']) . ' ';
+echo (($totals['uptimeDiff'] > 0)?'+':'-') . Format::Uptime($totals['uptimeDiff']) . ENDL;
 
 echo '<Download>  | ';
 echo Format::Bandwidth($totals['download']) . ' ';
-echo (($totals['downloadDiff'] > 0)?'[+':'[-') . Format::Bandwidth($totals['downloadDiff']) . ']' . ENDL;
+echo (($totals['downloadDiff'] > 0)?'+':'-') . Format::Bandwidth($totals['downloadDiff']) . ENDL;
 
 echo '<Upload>    | ';
 echo Format::Bandwidth($totals['upload']) . ' ';
-echo (($totals['uploadDiff'] > 0)?'[+':'[-') . Format::Bandwidth($totals['uploadDiff']) . ']' . ENDL;
+echo (($totals['uploadDiff'] > 0)?'+':'-') . Format::Bandwidth($totals['uploadDiff']) . ENDL;
 
 if ($totals['pulsers'] > 0) {
     
@@ -562,21 +621,32 @@ echo '```' . ENDL;
 //echo Mirror::getMirrorsBBcode($mirrors);
 echo 'Deze Statistieken: https://joeykapi.nl/wpdiscord/bbcodegenerator.php' . ENDL;
 
-echo 'Broncode: https://github.com/jkapi/GMOT-Whatpulse-Parser/tree/Discord';
+echo 'Broncode: <https://github.com/jkapi/GMOT-Whatpulse-Parser/tree/Discord>';
 
+
+// Send as code blocks
 $output = ob_get_clean();
 $lines = explode(ENDL, $output);
-echo '<textarea rows="10" cols="100">```md' . ENDL;
+if (isset($_GET['raw'])) {
+	echo '```md' . ENDL;
+	$devider = '```<END>```md' . ENDL;
+	$end = '';
+} else {
+	echo '<textarea rows="10" cols="123">```md'. ENDL;
+	$devider = ENDL . '```</textarea><br><textarea rows="10" cols="123">```md' . ENDL;
+	$end = ENDL . '</textarea>';
+}
+
 $printlength = 0;
 for ($i = 0; $i < count($lines); $i++) {
 	$printlength += strlen($lines[$i]) + 2;
 	if ($printlength > 1980) {
-		echo ENDL . '```</textarea><br><textarea rows="10" cols="100">```md' . ENDL;
+		echo $devider;
 		$printlength = strlen($lines[$i]);
 	}
 	echo $lines[$i] . ENDL;
 }
-echo ENDL . '</textarea>';
+echo $end;
 
 if (DEVMODE || isset($_GET['devmode']) || isset($_GET['gentime'])) {
     echo 'Generated in ' . ((microtime(true) - $starttime) * 1000) . ' milliseconds.';
