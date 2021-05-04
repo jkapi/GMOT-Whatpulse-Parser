@@ -143,4 +143,15 @@ class Format {
             return sprintf("%.2f", round($input, 2)).' MB';
         }
     }
+	
+	static function MB_strpad($input, $pad_length, $pad_string = ' ', $pad_type = STR_PAD_RIGHT, $encoding = null)
+	{
+		if (!$encoding) {
+			$diff = strlen($input) - mb_strlen($input);
+		}
+		else {
+			$diff = strlen($input) - mb_strlen($input, $encoding);
+		}
+		return str_pad($input, $pad_length + $diff, $pad_string, $pad_type);
+	}
 }

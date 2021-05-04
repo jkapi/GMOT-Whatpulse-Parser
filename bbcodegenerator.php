@@ -433,7 +433,7 @@ foreach ($users as $user) {
 		$print .= $user->getUsername();
 	}
 	
-	echo str_pad($print, 21) . '| ';
+	echo Format::MB_strpad($print, 21) . '| ';
     
     
     // 3rd column: keys
